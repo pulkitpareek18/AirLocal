@@ -9,7 +9,7 @@ No cables. No account. No dedicated app. No cloud file uploads.
 Open AirLocal on two devices, pair them using a QR code or room code, and transfer files directly between their browsers over your local network.
 
 <p align="center">
-  <a href="https://airlocal.vercel.app/"><strong>Try AirLocal →</strong></a>
+  <a href="https://airlocal.online/"><strong>Try AirLocal →</strong></a>
   &nbsp;·&nbsp;
   <a href="https://github.com/pulkitpareek18/AirLocal">Source Code</a>
   &nbsp;·&nbsp;
@@ -279,7 +279,7 @@ npx vercel --prod
 
 The repository includes `vercel.json` for the frontend build configuration.
 
-Live application: [airlocal.vercel.app](https://airlocal.vercel.app/)
+Live application: [airlocal.online](https://airlocal.online/)
 
 ### GitHub Pages
 
@@ -367,7 +367,7 @@ AirLocal is released under the [MIT License](./LICENSE).
 
 - GitHub: [@pulkitpareek18](https://github.com/pulkitpareek18)
 - Project: [AirLocal](https://github.com/pulkitpareek18/AirLocal)
-- Live demo: [airlocal.vercel.app](https://airlocal.vercel.app/)
+- Live demo: [airlocal.online](https://airlocal.online/)
 
 ---
 
