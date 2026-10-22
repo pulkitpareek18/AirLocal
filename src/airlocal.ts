@@ -461,7 +461,12 @@
   function closeSettings() { document.getElementById('settingsDialog')?.close(); }
   function clearTransferHistory() {
     sendTransfers.forEach((transfer, id) => { if (['complete', 'stopped', 'error'].includes(transfer.status)) sendTransfers.delete(id); });
-    receiveTransfers.forEach((transfer, id) => { if (['complete', 'stopped', 'error'].includes(transfer.status)) receiveTransfers.delete(id); });
+    receiveTransfers.forEach(async transfer => {
+      if (['complete', 'stopped', 'error'].includes(transfer.status)) {
+        await discardPreviewCopy(transfer);
+        receiveTransfers.delete(transfer.id);
+      }
+    });
     renderTransfers();
     showToast('Transfer history cleared', 'Active transfers were kept.', 'success');
   }
@@ -630,11 +635,15 @@
     const tone = transfer.status === 'complete' ? 'bg-success' : transfer.status === 'error' ? 'bg-destructive' : 'bg-primary';
     const label = transfer.status === 'complete' ? 'Complete' : transfer.status === 'error' ? 'Failed' : transfer.status === 'stopped' ? 'Stopped' : transfer.status === 'queued' ? 'Queued' : `${pct}%`;
     const canCancel = transfer.status === 'active' || transfer.status === 'queued';
+    const canPreview = transfer.status === 'complete' && transfer.previewable;
+    const canCopy = transfer.status === 'complete' && transfer.copyable;
     return `<div class="rounded-md border border-border bg-background/50 p-3" data-transfer-id="${transfer.id}" data-direction="${transfer.direction}">
       <div class="mb-2 flex items-center justify-between gap-3">
         <span class="min-w-0 truncate text-xs font-medium">${esc(transfer.name)}</span>
         <span class="flex shrink-0 items-center gap-2">
           <span class="transfer-label text-[10px] font-medium tabular-nums text-muted-foreground">${label}</span>
+          ${canPreview ? `<button type="button" onclick="openTransferPreview('${transfer.direction}', '${transfer.id}')" class="inline-flex items-center gap-1 rounded border border-info/50 bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info transition-colors hover:bg-info/20 hover:border-info/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" title="Preview ${escAttr(transfer.name)}" aria-label="Preview ${escAttr(transfer.name)}"><i data-lucide="eye" class="h-3 w-3"></i><span class="hidden sm:inline">Preview</span></button>` : ''}
+          ${canCopy ? `<button type="button" onclick="copyTransferFile('${transfer.direction}', '${transfer.id}', this)" class="inline-flex items-center gap-1 rounded border border-success/50 bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success transition-colors hover:bg-success/20 hover:border-success/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" title="Copy ${escAttr(transfer.name)} to the clipboard" aria-label="Copy ${escAttr(transfer.name)} to the clipboard"><i data-lucide="clipboard-copy" class="h-3 w-3"></i><span class="hidden sm:inline copy-label">Copy</span></button>` : ''}
           ${canCancel ? `<button type="button" onclick="cancelTransfer('${transfer.direction}', '${transfer.id}')" class="rounded px-1 text-[10px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive">${transfer.status === 'active' ? 'Cancel' : 'Remove'}</button>` : ''}
         </span>
       </div>
@@ -1228,9 +1237,17 @@
 
   async function discardReceiveTransfer(transfer) {
     try { if (transfer.writable) await transfer.writable.abort(); } catch {}
+    await discardPreviewCopy(transfer);
     if (transfer.fileHandle) {
       try { await transfer.tempDirectory.removeEntry(transfer.name); } catch {}
     }
+  }
+  async function discardPreviewCopy(transfer) {
+    transfer.previewFile = null;
+    try {
+      const previewsDirectory = await transfer.tempDirectory.getDirectoryHandle('previews');
+      await previewsDirectory.removeEntry(transfer.name);
+    } catch {}
   }
 
   // ---------- File transfer (OPFS direct-to-disk) ----------
@@ -1241,7 +1258,9 @@
         const id = String(msg.transferId);
         if (receiveTransfers.has(id)) return;
         const now = performance.now();
-        const transfer = { id, direction: 'receive', name: msg.name, size: msg.size, progress: 0, speed: 0, startedAt: now, lastSampleTime: now, lastSampleBytes: 0, lastRenderTime: 0, status: 'active', writable: null, fileHandle: null, tempDirectory: null, pending: [], endReceived: false, initializing: true };
+        const previewMeta = previewMetaFor(msg.name, msg.size, msg.mime);
+        const clipboardMeta = clipboardMetaFor(msg.name, msg.size, msg.mime);
+        const transfer = { id, direction: 'receive', name: msg.name, size: msg.size, progress: 0, speed: 0, startedAt: now, lastSampleTime: now, lastSampleBytes: 0, lastRenderTime: 0, status: 'active', writable: null, fileHandle: null, tempDirectory: null, pending: [], endReceived: false, initializing: true, mime: msg.mime || '', previewable: previewMeta.allowed, copyable: clipboardMeta.allowed, keepForPreview: previewMeta.allowed || clipboardMeta.allowed, previewFile: null };
         receiveTransfers.set(id, transfer);
         renderTransfers();
         log(`Inbound: ${msg.name} (${fmtMB(msg.size)})`);
@@ -1321,9 +1340,26 @@
     await transfer.writable.close();
     transfer.writable = null;
     const file = await transfer.fileHandle.getFile();
+    if (transfer.keepForPreview) {
+      try {
+        const previewsDirectory = await transfer.tempDirectory.getDirectoryHandle('previews', { create: true });
+        const copyHandle = await previewsDirectory.getFileHandle(transfer.name, { create: true });
+        const copyWritable = await copyHandle.createWritable({ keepExistingData: false });
+        await copyWritable.write(file);
+        await copyWritable.close();
+        // OPFS stores no MIME type; the preview/clipboard helpers take the
+        // sender's type as a hint so nothing is held in memory for retention.
+        transfer.previewFile = await copyHandle.getFile();
+      } catch {
+        transfer.previewable = false;
+        transfer.copyable = false;
+        transfer.previewFile = null;
+      }
+    }
     const savedToFolder = await saveToSelectedDirectory(file, transfer.name);
     if (!savedToFolder || savedToFolder.skipped) {
       if (savedToFolder?.skipped) {
+        await discardPreviewCopy(transfer);
         transfer.status = 'stopped';
         renderTransfers();
         showToast('File skipped', `${savedToFolder.name} was not saved because it already exists.`, 'warning');
@@ -1372,7 +1408,9 @@
 
     const transferQueue = queue.map(file => {
       const id = String(nextTransferId++);
-      const transfer = { id, direction: 'send', name: file.name, size: file.size, progress: 0, speed: 0, startedAt: 0, lastSampleTime: 0, lastSampleBytes: 0, lastRenderTime: 0, status: 'queued' };
+      const previewMeta = previewMetaFor(file.name, file.size, file.type);
+      const clipboardMeta = clipboardMetaFor(file.name, file.size, file.type);
+      const transfer = { id, direction: 'send', name: file.name, size: file.size, progress: 0, speed: 0, startedAt: 0, lastSampleTime: 0, lastSampleBytes: 0, lastRenderTime: 0, status: 'queued', mime: file.type || '', previewable: previewMeta.allowed, copyable: clipboardMeta.allowed, previewFile: previewMeta.allowed || clipboardMeta.allowed ? file : null };
       sendTransfers.set(id, transfer);
       return { file, id, transfer };
     });
@@ -1391,7 +1429,7 @@
       transfer.permissionResolved = false;
       transfer.permissionPromise = new Promise(resolve => { transfer.resolvePermission = resolve; });
       renderTransfers();
-      const startMessage = JSON.stringify({ type: 'START', transferId: id, name: file.name, size: file.size });
+      const startMessage = JSON.stringify({ type: 'START', transferId: id, name: file.name, size: file.size, mime: file.type || '' });
       open.forEach(ch => { try { ch.send(startMessage); } catch {} });
       const permitted = await Promise.race([
         transfer.permissionPromise,
@@ -1492,17 +1530,21 @@
   }
 
   function renderStagedQueue() {
-    document.getElementById('stagedFilesList').innerHTML = stagedFiles.map((f, index) => `
+    document.getElementById('stagedFilesList').innerHTML = stagedFiles.map((f, index) => {
+      const previewMeta = previewMetaFor(f.name, f.size, f.type);
+      return `
       <div class="flex items-center justify-between rounded-md border border-border bg-background/50 px-3 py-2 text-xs">
         <span class="flex min-w-0 items-center gap-2">
           <i data-lucide="file" class="h-3.5 w-3.5 shrink-0 text-muted-foreground"></i>
-          <span class="min-w-0 truncate font-medium" title="${esc(filePath(f))}">${esc(f.name)}<span class="ml-1 font-normal text-muted-foreground">${esc(filePath(f) === f.name ? '' : `· ${filePath(f)}`)}</span></span>
+          <span class="min-w-0 truncate font-medium" title="${escAttr(filePath(f))}">${esc(f.name)}<span class="ml-1 font-normal text-muted-foreground">${esc(filePath(f) === f.name ? '' : `· ${filePath(f)}`)}</span></span>
         </span>
         <span class="ml-2 flex shrink-0 items-center gap-2 text-muted-foreground">
           <span class="tabular-nums">${fmtMB(f.size)}</span>
+          ${previewMeta.allowed ? `<button type="button" onclick="openStagedPreview(${index})" class="inline-flex items-center gap-1 rounded border border-info/50 bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info transition-colors hover:bg-info/20 hover:border-info/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" title="Preview ${escAttr(f.name)}" aria-label="Preview ${escAttr(f.name)}"><i data-lucide="eye" class="h-3 w-3"></i>Preview</button>` : ''}
           <button type="button" onclick="removeStagedFile(${index})" class="rounded px-1 text-[10px] hover:bg-destructive/10 hover:text-destructive" title="Remove from queue">Remove</button>
         </span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     lucide.createIcons();
     document.getElementById('stagedContainer').classList.toggle('hidden', stagedFiles.length === 0);
     const total = stagedFiles.reduce((sum, file) => sum + file.size, 0);
@@ -1523,6 +1565,281 @@
     if (index < 0 || index >= stagedFiles.length) return;
     stagedFiles.splice(index, 1);
     renderStagedQueue();
+  }
+
+  // ---------- File preview & clipboard ----------
+  const PREVIEW_CAPS = { image: 32 * 1024 * 1024, video: 256 * 1024 * 1024, audio: 64 * 1024 * 1024, pdf: 64 * 1024 * 1024, text: 2 * 1024 * 1024 };
+  const CLIPBOARD_CAPS = { image: 32 * 1024 * 1024, text: 1024 * 1024 };
+  const TEXT_PREVIEW_BYTES = 512 * 1024;
+  const EXT_KINDS = {
+    image: new Set(['png', 'jpg', 'jpeg', 'jfif', 'pjpeg', 'pjp', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico', 'apng', 'heic', 'heif']),
+    video: new Set(['mp4', 'm4v', 'webm', 'mov', 'mkv', 'ogv', '3gp', 'mpg', 'mpeg']),
+    audio: new Set(['mp3', 'wav', 'wave', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'flac', 'weba', 'wma']),
+    pdf: new Set(['pdf']),
+    text: new Set(['txt', 'text', 'md', 'markdown', 'csv', 'tsv', 'json', 'jsonc', 'js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'py', 'pyi', 'rb', 'go', 'rs', 'java', 'kt', 'kts', 'swift', 'c', 'h', 'cpp', 'hpp', 'cc', 'hh', 'cs', 'php', 'sh', 'bash', 'zsh', 'fish', 'bat', 'cmd', 'ps1', 'html', 'htm', 'xhtml', 'css', 'scss', 'sass', 'less', 'xml', 'yml', 'yaml', 'toml', 'ini', 'cfg', 'conf', 'env', 'properties', 'gradle', 'log', 'srt', 'vtt', 'ics']),
+  };
+  const TEXT_MIMES = new Set(['application/json', 'application/xml', 'application/javascript', 'application/typescript', 'application/x-yaml', 'application/yaml', 'application/toml']);
+
+  function escAttr(value) {
+    return esc(value).replace(/"/g, '&quot;');
+  }
+  function extensionOf(name) {
+    const value = String(name || '');
+    const index = value.lastIndexOf('.');
+    if (index <= 0 || index === value.length - 1) return '';
+    return value.slice(index + 1).toLowerCase();
+  }
+  function fileKindFor(name, mimeHint = '') {
+    const mime = String(mimeHint || '').split(';')[0].trim().toLowerCase();
+    if (mime) {
+      if (mime.startsWith('image/')) return 'image';
+      if (mime.startsWith('video/')) return 'video';
+      if (mime.startsWith('audio/')) return 'audio';
+      if (mime === 'application/pdf') return 'pdf';
+      if (mime.startsWith('text/') || TEXT_MIMES.has(mime)) return 'text';
+    }
+    const ext = extensionOf(name);
+    for (const [kind, extensions] of Object.entries(EXT_KINDS)) {
+      if (extensions.has(ext)) return kind;
+    }
+    return 'other';
+  }
+  function previewMetaFor(name, size, mimeHint = '') {
+    const kind = fileKindFor(name, mimeHint);
+    const cap = PREVIEW_CAPS[kind];
+    return { kind, allowed: Boolean(cap) && size <= cap };
+  }
+  function clipboardMetaFor(name, size, mimeHint = '') {
+    const kind = fileKindFor(name, mimeHint);
+    if (kind === 'image' && size <= CLIPBOARD_CAPS.image) return { kind, allowed: true };
+    if (kind === 'text' && size <= CLIPBOARD_CAPS.text) return { kind, allowed: true };
+    return { kind, allowed: false };
+  }
+  function kindLabel(kind) {
+    return { image: 'Image', video: 'Video', audio: 'Audio', pdf: 'PDF document', text: 'Text file' }[kind] || 'File';
+  }
+  function kindIcon(kind) {
+    return { image: 'image', video: 'file-video', audio: 'file-audio', pdf: 'file-text', text: 'file-code' }[kind] || 'file';
+  }
+  function fmtBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) return '—';
+    if (bytes < 1024) return `${bytes} B`;
+    let value = bytes;
+    let unit = 'B';
+    for (const next of ['KB', 'MB', 'GB']) {
+      if (value < 1024) break;
+      value /= 1024;
+      unit = next;
+    }
+    return `${value >= 100 ? Math.round(value) : value.toFixed(1)} ${unit}`;
+  }
+
+  let previewState = null; // { file, name, kind, url } for the open preview dialog
+
+  // OPFS-backed Files carry no MIME type; wrap them in a typed Blob (lazy, no
+  // eager read) so media elements, the PDF viewer, and the clipboard behave.
+  function typedBlobFor(file, mimeHint) {
+    if (file.type) return file;
+    const type = String(mimeHint || '').split(';')[0].trim();
+    return type ? new Blob([file], { type }) : file;
+  }
+
+  async function openPreviewDialog(file, name, mimeHint = '') {
+    if (!file) return;
+    const typeHint = mimeHint || file.type || '';
+    const meta = previewMetaFor(name, file.size, typeHint);
+    if (!meta.allowed) {
+      showToast('Preview not available', 'AirLocal previews light image, video, audio, PDF, and text files.', 'warning');
+      return;
+    }
+    const dialog = document.getElementById('previewDialog');
+    const body = document.getElementById('previewBody');
+    if (!dialog || !body) return;
+    if (previewState?.url) URL.revokeObjectURL(previewState.url);
+    const url = URL.createObjectURL(typedBlobFor(file, typeHint));
+    previewState = { file, name, kind: meta.kind, mime: typeHint, url };
+    const title = document.getElementById('previewName');
+    title.textContent = name;
+    title.title = name;
+    document.getElementById('previewMeta').textContent = `${kindLabel(meta.kind)} · ${fmtBytes(file.size)}`;
+    document.getElementById('previewKindIcon').innerHTML = `<i data-lucide="${kindIcon(meta.kind)}" class="h-4 w-4"></i>`;
+    const copyMeta = clipboardMetaFor(name, file.size, typeHint);
+    const copyButton = document.getElementById('previewCopyBtn');
+    copyButton.classList.toggle('hidden', !copyMeta.allowed);
+    copyButton.classList.toggle('inline-flex', copyMeta.allowed);
+    copyButton.title = copyMeta.allowed ? (copyMeta.kind === 'text' ? 'Copy the text to your clipboard' : 'Copy the image to your clipboard') : '';
+    body.innerHTML = `<div class="flex min-h-[30vh] items-center justify-center text-xs text-muted-foreground"><i data-lucide="loader-circle" class="h-4 w-4 animate-spin"></i></div>`;
+    lucide.createIcons();
+    if (!dialog.open) dialog.showModal();
+    try {
+      if (meta.kind === 'text') {
+        const text = await file.slice(0, TEXT_PREVIEW_BYTES).text();
+        if (previewState?.url !== url) return;
+        const truncated = file.size > TEXT_PREVIEW_BYTES;
+        body.innerHTML = `<pre class="custom-scrollbar whitespace-pre-wrap break-words rounded-md border border-border bg-background p-3 font-mono text-[11px] leading-relaxed text-foreground">${esc(text)}</pre>${truncated ? `<p class="mt-2 text-center text-[10px] text-muted-foreground">Showing the first ${fmtBytes(TEXT_PREVIEW_BYTES)} of ${fmtBytes(file.size)}. Use Copy or open in a new tab for the full file.</p>` : ''}`;
+      } else if (meta.kind === 'image') {
+        body.innerHTML = `<img src="${url}" alt="Preview of ${escAttr(name)}" class="mx-auto block max-h-[65vh] w-auto max-w-full rounded-md object-contain" />`;
+      } else if (meta.kind === 'video') {
+        body.innerHTML = `<video src="${url}" controls playsinline preload="metadata" class="mx-auto block max-h-[65vh] max-w-full rounded-md bg-black"></video>`;
+      } else if (meta.kind === 'audio') {
+        body.innerHTML = `<div class="flex min-h-[30vh] items-center justify-center"><audio src="${url}" controls preload="metadata" class="w-full max-w-md"></audio></div>`;
+      } else if (meta.kind === 'pdf') {
+        body.innerHTML = `<iframe src="${url}" title="Preview of ${escAttr(name)}" class="h-[65vh] w-full rounded-md border border-border bg-white"></iframe><p class="mt-2 text-center text-[10px] text-muted-foreground">PDF preview uses your browser's built-in viewer. If it does not load, open it in a new tab.</p>`;
+      }
+    } catch (error) {
+      if (previewState?.url !== url) return;
+      body.innerHTML = `<div class="flex min-h-[30vh] flex-col items-center justify-center gap-2 text-center"><i data-lucide="file-question" class="h-6 w-6 text-muted-foreground"></i><p class="text-xs text-muted-foreground">This file could not be previewed in the browser.</p></div>`;
+    }
+    lucide.createIcons();
+  }
+  function closePreview() {
+    const dialog = document.getElementById('previewDialog');
+    if (dialog?.open) dialog.close();
+    releasePreview();
+  }
+  function releasePreview() {
+    if (!previewState) return;
+    if (previewState.url) URL.revokeObjectURL(previewState.url);
+    previewState = null;
+    document.getElementById('previewBody').innerHTML = '';
+  }
+  function openPreviewInNewTab() {
+    if (!previewState) return;
+    const url = URL.createObjectURL(typedBlobFor(previewState.file, previewState.mime));
+    const opened = window.open(url, '_blank');
+    if (!opened) showToast('Popup blocked', 'Allow popups to open the preview in a new tab.', 'warning');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+  function openTransferPreview(direction, id) {
+    const transfer = (direction === 'send' ? sendTransfers : receiveTransfers).get(String(id));
+    if (!transfer?.previewFile) return;
+    openPreviewDialog(transfer.previewFile, transfer.name, transfer.mime || '');
+  }
+  function copyTransferFile(direction, id, sourceElement) {
+    const transfer = (direction === 'send' ? sendTransfers : receiveTransfers).get(String(id));
+    if (!transfer?.previewFile) return;
+    copyFileToClipboard(transfer.previewFile, transfer.name, transfer.mime || '', sourceElement instanceof Element ? sourceElement : null);
+  }
+  function openStagedPreview(index) {
+    const file = stagedFiles[index];
+    if (!file) return;
+    openPreviewDialog(file, file.name, file.type);
+  }
+  async function convertImageToPng(file) {
+    const url = URL.createObjectURL(file);
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const element = new Image();
+        element.onload = () => resolve(element);
+        element.onerror = () => reject(new Error('This browser could not decode the image.'));
+        element.src = url;
+      });
+      const width = image.naturalWidth || image.width;
+      const height = image.naturalHeight || image.height;
+      if (!width || !height) throw new Error('The image has no display size.');
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(image, 0, 0);
+      const blob = await new Promise((resolve, reject) => canvas.toBlob(
+        result => (result ? resolve(result) : reject(new Error('The image could not be converted.'))),
+        'image/png'
+      ));
+      if (!blob.size) throw new Error('The image could not be converted.');
+      return blob;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  async function copyFileToClipboard(file, name, mimeHint = '', sourceButton = null) {
+    const typeHint = mimeHint || file.type || '';
+    const meta = clipboardMetaFor(name, file.size, typeHint);
+    if (!meta.allowed) {
+      showToast('Copy not supported', 'Only light images and text files can be copied to the clipboard.', 'warning');
+      return false;
+    }
+    if (!navigator.clipboard) {
+      showToast('Clipboard unavailable', 'This browser does not expose the clipboard API.', 'error');
+      return false;
+    }
+    if (sourceButton) flashCopiedState(sourceButton, 'pending');
+    try {
+      if (meta.kind === 'text') {
+        await navigator.clipboard.writeText(await file.text());
+        if (sourceButton) flashCopiedState(sourceButton, 'copied');
+        showToast('Copied to clipboard', `${name} is ready to paste as text.`, 'success');
+        return true;
+      }
+      if (typeof ClipboardItem === 'undefined' || !navigator.clipboard.write) {
+        throw new Error('This browser cannot copy images to the clipboard.');
+      }
+      const source = typedBlobFor(file, typeHint);
+      const pngPromise = source.type.toLowerCase() === 'image/png'
+        ? Promise.resolve(source)
+        : convertImageToPng(source);
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngPromise })]);
+      } catch (conversionError) {
+        const blob = await pngPromise;
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      }
+      if (sourceButton) flashCopiedState(sourceButton, 'copied');
+      showToast('Copied to clipboard', `${name} is ready to paste as an image.`, 'success');
+      return true;
+    } catch (error) {
+      if (sourceButton) flashCopiedState(sourceButton, 'reset');
+      showToast('Copy failed', error?.message || 'The file could not be copied in this browser.', 'error');
+      return false;
+    }
+  }
+  function flashCopiedState(button, state) {
+    if (!button) return;
+    // Cancel any in-flight flash (e.g. rapid repeat clicks) before applying the new state.
+    button.__copiedRestore?.();
+    if (state === 'pending') {
+      button.disabled = true;
+      return;
+    }
+    if (state === 'reset') {
+      button.disabled = false;
+      return;
+    }
+    const icon = button.querySelector('svg, i');
+    const label = button.querySelector('.copy-label');
+    const originalLabelText = label ? label.textContent : null;
+    const hadMuted = button.classList.contains('text-muted-foreground');
+    if (hadMuted) {
+      button.classList.remove('text-muted-foreground');
+      button.classList.add('text-success');
+    }
+    if (label) label.textContent = 'Copied';
+    let originalIconHtml = null;
+    if (icon) {
+      originalIconHtml = icon.outerHTML;
+      const size = icon.getAttribute('class')?.match(/h-[\d.]+ w-[\d.]+/)?.[0] || 'h-3.5 w-3.5';
+      icon.outerHTML = `<i data-lucide="circle-check" class="${size}"></i>`;
+      lucide.createIcons();
+    }
+    button.disabled = false;
+    const timer = setTimeout(() => button.__copiedRestore?.(), 1600);
+    button.__copiedRestore = () => {
+      clearTimeout(timer);
+      if (hadMuted) {
+        button.classList.remove('text-success');
+        button.classList.add('text-muted-foreground');
+      }
+      if (label && originalLabelText !== null) label.textContent = originalLabelText;
+      const currentIcon = button.querySelector('svg, i');
+      if (currentIcon && originalIconHtml) currentIcon.outerHTML = originalIconHtml;
+      lucide.createIcons();
+      button.disabled = false;
+      delete button.__copiedRestore;
+    };
+  }
+  async function copyPreviewedFile() {
+    if (!previewState) return;
+    const button = document.getElementById('previewCopyBtn');
+    await copyFileToClipboard(previewState.file, previewState.name, previewState.mime, button);
   }
 
   // ---------- UI wiring ----------
@@ -1634,6 +1951,11 @@
       pendingInput = null;
       resolve(null);
     });
+    document.getElementById('previewDialog')?.addEventListener('close', releasePreview);
+    document.getElementById('previewBody')?.addEventListener('click', event => {
+      // Clicking the empty area around the media content closes the preview.
+      if (!event.target.closest('img, video, audio, iframe, pre')) closePreview();
+    });
     document.getElementById('inputValue').addEventListener('keydown', event => {
       if (event.key !== 'Enter') return;
       event.preventDefault();
@@ -1699,4 +2021,6 @@ Object.assign(window, {
   editRoom, requestConnection, disconnectPeer, cancelTransfer, closeQueueNotice,
   setTheme, setBackupMode, setOrganizeByType, setBackupNamingConvention,
   manageSaveLocation, chooseSaveDirectory, removeStagedFile, clearStagedQueue,
+  openStagedPreview, openTransferPreview, copyTransferFile,
+  closePreview, openPreviewInNewTab, copyPreviewedFile,
 });

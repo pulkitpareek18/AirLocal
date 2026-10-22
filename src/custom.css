@@ -20,6 +20,7 @@
       --popover-foreground: 0 0% 98%;
       --success: 142 38% 47%;
       --warning: 38 44% 52%;
+      --info: 217 91% 68%;
       color-scheme: dark;
     }
     :root.light {
@@ -44,6 +45,7 @@
       --popover-foreground: 240 5.9% 10%;
       --success: 142 42% 35%;
       --warning: 38 48% 40%;
+      --info: 221 83% 53%;
       color-scheme: light;
     }
     * { -webkit-tap-highlight-color: transparent; }

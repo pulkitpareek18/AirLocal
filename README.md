@@ -90,6 +90,14 @@ Designed for devices connected to the same Wi-Fi network, phone hotspot, or LAN/
 - Handle duplicate filenames with Replace, Keep Both, Skip, or Replace All
 - Optional backup mode with configurable date and time-based folder names
 
+### In-app file previews
+
+Preview received or queued files directly in the app: images, videos, audio, PDFs, and text or source files under the preview size limit. Previews open in a modal, use the browser's built-in viewers, and can be opened in a new tab. Large and unsupported files keep their normal transfer flow.
+
+### Copy to clipboard
+
+Received images and text files can be copied to the system clipboard straight from the transfer card or the preview dialog. Non-PNG images are converted automatically where the browser supports it.
+
 ### No cloud file storage
 
 AirLocal does not upload file contents to a central storage service. Connection signaling and device discovery are handled separately from the actual file transfer.

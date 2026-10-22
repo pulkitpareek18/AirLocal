@@ -514,6 +514,33 @@ export function AppContent() {
 
   <div id="toastRegion" className="pointer-events-none fixed inset-x-4 bottom-4 z-[70] flex flex-col items-stretch gap-2 sm:left-auto sm:right-4 sm:inset-x-auto sm:w-80" aria-live="polite" aria-atomic="true"></div>
 
+  <Dialog id="previewDialog" className="fixed left-1/2 top-1/2 z-[80] w-[calc(100vw-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-popover p-0 text-popover-foreground shadow-lg">
+    <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span id="previewKindIcon" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground"></span>
+        <div className="min-w-0">
+          <h2 id="previewName" className="truncate text-sm font-semibold leading-tight tracking-tight">File</h2>
+          <p id="previewMeta" className="mt-0.5 text-xs text-muted-foreground">—</p>
+        </div>
+      </div>
+      <button type="button" onClick={() => { (window as any).closePreview() }} aria-label="Close preview" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><i data-lucide="x" className="h-4 w-4"></i></button>
+    </div>
+    <div id="previewBody" className="max-h-[calc(100dvh-11rem)] overflow-y-auto p-4 custom-scrollbar"></div>
+    <div className="flex flex-row gap-2 border-t border-border px-5 py-3 sm:justify-end">
+      <button type="button" onClick={() => { (window as any).openPreviewInNewTab() }} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" title="Open the file in a new browser tab">
+        <i data-lucide="external-link" className="h-3.5 w-3.5"></i>
+        Open in new tab
+      </button>
+      <button type="button" id="previewCopyBtn" onClick={() => { (window as any).copyPreviewedFile() }} className="hidden h-9 items-center justify-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" title="Copy to clipboard">
+        <i data-lucide="clipboard-copy" className="h-3.5 w-3.5"></i>
+        <span className="copy-label">Copy to clipboard</span>
+      </button>
+      <button type="button" onClick={() => { (window as any).closePreview() }} className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+        Close
+      </button>
+    </div>
+  </Dialog>
+
 
       </>
     </Card>
