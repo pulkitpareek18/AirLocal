@@ -270,7 +270,7 @@
     if (!dialog) return Promise.resolve('skip');
     document.getElementById('overwriteFileName').textContent = name;
     document.getElementById('overwriteLocation').textContent = location;
-    dialog.showModal();
+    showModalFocused('overwriteDialog', '#overwriteDialog button[type="button"]');
     return new Promise(resolve => { pendingOverwrite = { resolve, dialog }; });
   }
   function resolveOverwrite(action) {
@@ -455,7 +455,7 @@
     if (dialog?.open) dialog.close();
     else {
       document.getElementById('themeSelect').value = currentTheme();
-      dialog?.showModal();
+      showModalFocused('settingsDialog', '#settingsDialog > div:first-child button');
     }
   }
   function closeSettings() { document.getElementById('settingsDialog')?.close(); }
@@ -668,8 +668,7 @@
     document.getElementById('queueNoticeDescription').textContent =
       paths.join('\n');
     if (dialog.open) dialog.close();
-    dialog.showModal();
-    document.querySelector('#queueNoticeDialog button')?.focus();
+    showModalFocused('queueNoticeDialog', '#queueNoticeDialog button');
   }
   function checkBrowserSupport() {
     const missing = [];
@@ -932,7 +931,7 @@
     if (!peer || peer.sid === SESSION_ID) return;
     const btn = document.createElement('button');
     btn.id = `peer-${peer.sid}`;
-    btn.className = 'group flex animate-slide-up flex-col items-center gap-2.5 rounded-md border border-border bg-background/50 p-4 text-center transition-colors hover:border-muted-foreground/40 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+    btn.className = 'group relative flex animate-slide-up flex-col items-center gap-2.5 rounded-md border border-border bg-background/50 p-4 text-center transition-colors hover:border-muted-foreground/40 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
     btn.onclick = () => requestConnection(peer.sid);
     btn.innerHTML = peerMarkup(peer);
     document.getElementById('peerGrid').appendChild(btn);
@@ -943,12 +942,18 @@
     const connected = activePeer === peer.sid;
     const pending = !connected && pendingPeer === peer.sid;
     const platform = { ios: 'iOS', android: 'Android', windows: 'Windows', mac: 'macOS', linux: 'Linux' }[peer.kind] || 'Device';
+    syncPeerOrder();
+    const peerIndex = peerOrder.indexOf(peer.sid);
+    const keyBadge = !connected && peerIndex >= 0 && peerIndex < 9
+      ? `<span class="kbd-chip absolute right-2 top-2 z-10" title="Press Shift + ${peerIndex + 1} to connect"><span class="kbd-shift">⇧</span><span class="kbd-plus">+</span>${peerIndex + 1}</span>`
+      : '';
     const statusLabel = connected
       ? '<span class="-mt-1.5 text-[10px] font-medium uppercase tracking-wider text-success">connected</span>'
       : pending
         ? `<span class="-mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-warning"><span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-warning"></span>${esc(connectionPhase)}</span>`
         : '<span class="-mt-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">connect</span>';
     return `
+      ${keyBadge}
       <div class="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
         <i data-lucide="${iconFor(peer.kind)}" class="h-5 w-5"></i>
       </div>
@@ -1087,7 +1092,7 @@
         }
         pendingIncoming = { from, name: msg.name || 'Device' };
         document.getElementById('incomingTitle').innerText = `${pendingIncoming.name} wants to send you files`;
-        document.getElementById('incomingDialog').showModal();
+        showModalFocused('incomingDialog', '#incomingAcceptBtn');
         return;
       }
       case 'connect-accept': {
@@ -1670,7 +1675,11 @@
     copyButton.title = copyMeta.allowed ? (copyMeta.kind === 'text' ? 'Copy the text to your clipboard' : 'Copy the image to your clipboard') : '';
     body.innerHTML = `<div class="flex min-h-[30vh] items-center justify-center text-xs text-muted-foreground"><i data-lucide="loader-circle" class="h-4 w-4 animate-spin"></i></div>`;
     lucide.createIcons();
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) {
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      dialog.showModal();
+      document.getElementById('previewCloseBtn')?.focus();
+    }
     try {
       if (meta.kind === 'text') {
         const text = await file.slice(0, TEXT_PREVIEW_BYTES).text();
@@ -1842,6 +1851,252 @@
     await copyFileToClipboard(previewState.file, previewState.name, previewState.mime, button);
   }
 
+  // ---------- Keyboard shortcuts ----------
+  const KEYBOARD_TARGETS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+  function isTypingContext(element) {
+    return KEYBOARD_TARGETS.has(element?.tagName) || element?.isContentEditable;
+  }
+  function keyboardScope() {
+    // The topmost modal is the one holding focus (native modal focus trap).
+    // DOM order can disagree with stacking order when dialogs stack, e.g. the
+    // rename input opening on top of Settings — so resolve by activeElement.
+    const openDialogs = [...document.querySelectorAll('dialog[open]')];
+    if (openDialogs.length) {
+      const active = document.activeElement;
+      const containing = openDialogs.find(d => d.contains(active));
+      return (containing || openDialogs[openDialogs.length - 1]).id;
+    }
+    return 'app';
+  }
+  // Opens a modal dialog and moves focus into its first focusable control so
+  // keyboard users land somewhere useful instead of the dialog body.
+  function showModalFocused(dialogId, selector) {
+    const dialog = document.getElementById(dialogId);
+    if (!dialog) return dialog;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    dialog.showModal();
+    const target = selector
+      ? dialog.querySelector(selector)
+      : dialog.querySelector('input, button:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])');
+    (target || dialog).focus();
+    return dialog;
+  }
+
+  const peerOrder = []; // roster order for number-key connect
+  function syncPeerOrder() {
+    peerOrder.length = 0;
+    for (const sid of peers.keys()) if (sid !== activePeer) peerOrder.push(sid);
+  }
+
+  const commands = [
+    { id: 'send-files', label: 'Choose files to send', hint: 'Opens the system file picker', icon: 'file-up', keys: ['o'], run: () => document.getElementById('fileInput').click() },
+    { id: 'transmit', label: 'Send queued files', hint: 'Transfers the staged send queue', icon: 'zap', keys: ['s'], run: () => transmitQueue(), enabled: () => stagedFiles.length && activePeer },
+    { id: 'connect-peer', label: 'Connect to a device', hint: 'Shift + 1–9 connects the n-th nearby device', icon: 'link', keys: [], run: () => {
+      syncPeerOrder();
+      if (!peerOrder.length) { showToast('No devices nearby', 'Scan the QR code or share the room code first.', 'warning'); return; }
+      requestConnection(peerOrder[0]);
+    }, enabled: () => peers.size > 0 && !activePeer },
+    { id: 'disconnect', label: 'Disconnect from device', hint: 'Ends the active transfer connection', icon: 'unplug', keys: ['d'], run: () => disconnectPeer(), enabled: () => Boolean(activePeer) },
+    { id: 'settings', label: 'Open settings', hint: 'Rename device, save folder, theme', icon: 'settings-2', keys: ['c'], run: () => toggleSettings() },
+    { id: 'rename', label: 'Rename this device', hint: 'The name other devices see', icon: 'pencil', keys: ['n'], run: () => renameSelf() },
+    { id: 'room', label: 'Change room code', hint: 'Same four-digit code on every device', icon: 'hash', keys: ['r'], run: () => editRoom() },
+    { id: 'save-folder', label: 'Choose save folder', hint: 'Where received files are stored', icon: 'folder-down', keys: ['f'], run: () => chooseSaveDirectory() },
+    { id: 'history', label: 'Clear transfer history', hint: 'Removes finished activity cards', icon: 'broom', keys: [], run: () => clearTransferHistory() },
+    { id: 'how-it-works', label: 'How it works page', hint: 'Explains the direct transfer flow', icon: 'circle-help', keys: [], run: () => { location.hash = '#how-it-works'; renderInfoPage(); } },
+    { id: 'theme', label: 'Toggle light / dark theme', hint: 'Switches between the two themes', icon: 'palette', keys: ['t'], run: () => setTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark') },
+    { id: 'theme-device', label: 'Use device theme', hint: 'Follows your system setting', icon: 'monitor', keys: [], run: () => setTheme('device') },
+    { id: 'toggle-log', label: 'Toggle diagnostics overlay', hint: 'Shows recent engine events', icon: 'terminal', keys: [], run: () => {
+      const el = document.getElementById('dbgOverlay');
+      el.classList.toggle('hidden');
+      if (!el.classList.contains('hidden')) el.textContent = (window.__dbg || []).join('\n') || 'no events yet';
+    } },
+    { id: 'shortcuts', label: 'Keyboard shortcuts', hint: 'Shift + 1–9 connects a nearby device', icon: 'keyboard', keys: [], run: () => {} },
+  ];
+
+  let paletteState = { open: false, query: '', index: 0, results: [] };
+  function commandById(id) { return commands.find(c => c.id === id); }
+  function paletteResults(query) {
+    const text = query.trim().toLowerCase();
+    const pool = commands.filter(c => c.id !== 'shortcuts');
+    if (!text) return pool;
+    return pool.filter(c =>
+      c.label.toLowerCase().includes(text) ||
+      c.hint.toLowerCase().includes(text) ||
+      c.id.includes(text)
+    );
+  }
+  function renderPalette() {
+    const input = document.getElementById('paletteInput');
+    const list = document.getElementById('paletteList');
+    if (!input || !list) return;
+    if (document.activeElement !== input) input.value = paletteState.query;
+    paletteState.results = paletteResults(paletteState.query);
+    if (paletteState.index >= paletteState.results.length) paletteState.index = Math.max(0, paletteState.results.length - 1);
+    list.innerHTML = paletteState.results.map((command, index) => `
+      <li role="option" aria-selected="${index === paletteState.index}" id="palette-item-${index}" data-index="${index}" class="group flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 ${index === paletteState.index ? 'bg-accent text-accent-foreground' : 'text-foreground'}">
+        <i data-lucide="${command.icon}" class="h-4 w-4 shrink-0 text-muted-foreground"></i>
+        <span class="flex min-w-0 flex-1 flex-col">
+          <span class="truncate text-sm font-medium">${esc(command.label)}</span>
+          <span class="truncate text-[11px] text-muted-foreground">${esc(command.hint)}</span>
+        </span>
+        ${command.keys.length ? `<span class="kbd-chip ml-auto shrink-0">${command.keys.map(k => esc(k)).join('')}</span>` : ''}
+        ${command.enabled && !command.enabled() ? '<i data-lucide="lock" class="h-3 w-3 shrink-0 text-muted-foreground/60"></i>' : ''}
+      </li>`).join('') || `
+      <li class="px-3 py-6 text-center text-xs text-muted-foreground">No matching commands. Try “send”, “room”, or “theme”.</li>`;
+    const selected = list.querySelector('[aria-selected="true"]');
+    if (selected) selected.scrollIntoView({ block: 'nearest' });
+    lucide.createIcons();
+    input.setAttribute('aria-activedescendant', `palette-item-${paletteState.index}`);
+  }
+  function openCommandPalette() {
+    const dialog = document.getElementById('commandPalette');
+    if (!dialog) return;
+    paletteState = { open: true, query: '', index: 0, results: [] };
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    dialog.showModal();
+    renderPalette();
+    const input = document.getElementById('paletteInput');
+    input.focus();
+    input.select();
+  }
+  function closeCommandPalette() {
+    const dialog = document.getElementById('commandPalette');
+    if (dialog?.open) dialog.close();
+  }
+  function runCommand(id, sourceButton) {
+    const command = commandById(id);
+    if (!command) return;
+    if (command.enabled && !command.enabled()) {
+      showToast('Not available right now', `${command.label} needs a different app state (e.g. a connected device or a staged queue).`, 'warning');
+      return;
+    }
+    command.run(sourceButton);
+  }
+  function paletteMove(delta) {
+    if (!paletteState.results.length) return;
+    paletteState.index = (paletteState.index + delta + paletteState.results.length) % paletteState.results.length;
+    renderPalette();
+  }
+  function paletteExecute() {
+    const command = paletteState.results[paletteState.index];
+    if (!command) return;
+    closeCommandPalette();
+    // Some commands (folder picker, file picker) need a user gesture slot;
+    // the palette close() is synchronous so this still counts as one.
+    runCommand(command.id);
+  }
+  function paletteKeydown(event) {
+    if (event.key === 'ArrowDown') { event.preventDefault(); paletteMove(1); }
+    else if (event.key === 'ArrowUp') { event.preventDefault(); paletteMove(-1); }
+    else if (event.key === 'Enter') { event.preventDefault(); paletteExecute(); }
+    else if (event.key === 'Escape') { event.preventDefault(); closeCommandPalette(); }
+  }
+
+  // Per-dialog keybindings: the scope id maps to { key: handler }. Handlers run
+  // only while that specific dialog is open, in addition to native Tab/Esc.
+  const dialogKeybindings = {
+    confirmDialog: {
+      enter: () => window.resolveConfirmation(true),
+      escape: () => window.resolveConfirmation(false),
+    },
+    incomingDialog: {
+      enter: () => window.respondIncoming(true),
+      escape: () => window.respondIncoming(false),
+    },
+    overwriteDialog: {
+      s: () => window.resolveOverwrite('skip'),
+      k: () => window.resolveOverwrite('keep'),
+      r: () => window.resolveOverwrite('replace'),
+      a: () => window.resolveOverwrite('replace-all'),
+    },
+    queueNoticeDialog: {
+      enter: () => window.closeQueueNotice(),
+    },
+    inputDialog: {
+      // Enter is handled natively by the input's own keydown listener; Escape
+      // closes the dialog and resolves null via the dialog's close event.
+    },
+    previewDialog: {
+      c: () => window.copyPreviewedFile(),
+      n: () => window.openPreviewInNewTab(),
+      escape: () => window.closePreview(),
+    },
+    settingsDialog: {
+      // Explicit bindings mirror the row buttons: they close Settings first.
+      // Keyed hints rendered on the rows: n, r, f (rows), t (theme), c (header).
+      escape: () => window.closeSettings(),
+      c: () => window.closeSettings(),
+      n: () => { window.closeSettings(); window.renameSelf(); },
+      r: () => { window.closeSettings(); window.editRoom(); },
+      f: () => { window.closeSettings(); window.chooseSaveDirectory(); },
+      t: () => window.setTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark'),
+    },
+  };
+  function dialogBindingFor(scope, key) {
+    const bindings = dialogKeybindings[scope];
+    if (!bindings) return null;
+    const handler = bindings[key];
+    return typeof handler === 'function' ? handler : null;
+  }
+  // Resolves a single-key app shortcut (o/s/d/c/n/r/f/t, ?, Shift+number).
+  // Returns true when the key was consumed.
+  function tryAppShortcut(event) {
+    if (isTypingContext(event.target)) return false;
+    const key = event.key.toLowerCase();
+    if (event.key === '?') { event.preventDefault(); openCommandPalette(); return true; }
+    if (/^[1-9]$/.test(event.key) && event.shiftKey) {
+      syncPeerOrder();
+      const sid = peerOrder[Number(event.key) - 1];
+      if (sid) {
+        event.preventDefault();
+        requestConnection(sid);
+        return true;
+      }
+      return false;
+    }
+    const command = commands.find(c => c.keys.includes(key));
+    if (!command) return false;
+    event.preventDefault();
+    if (command.enabled && !command.enabled()) {
+      showToast('Not available right now', `${command.label} needs a different app state (e.g. a connected device or a staged queue).`, 'warning');
+      return true;
+    }
+    command.run();
+    return true;
+  }
+
+  function handleGlobalKeydown(event) {
+    if (event.defaultPrevented) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) {
+      // Ctrl/Cmd+K opens the palette from anywhere, even inside inputs.
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        if (document.getElementById('commandPalette')?.open) closeCommandPalette();
+        else openCommandPalette();
+        return;
+      }
+      return;
+    }
+    const scope = keyboardScope();
+    if (scope !== 'app') {
+      // Inside a modal: dialog-specific bindings run alongside native Tab/Esc.
+      if (scope === 'commandPalette') return; // the palette input handles its own keys
+      const key = event.key.toLowerCase();
+      if (event.key === '?') { event.preventDefault(); openCommandPalette(); return; }
+      const binding = dialogBindingFor(scope, key);
+      if (binding && !isTypingContext(event.target)) {
+        // Enter on a focused button must keep its native activation; the
+        // binding is only a fallback when focus is on the dialog itself.
+        if (event.key === 'Enter' && document.activeElement instanceof HTMLButtonElement) return;
+        event.preventDefault();
+        binding();
+        return;
+      }
+      return;
+    }
+    tryAppShortcut(event);
+  }
+
   // ---------- UI wiring ----------
   async function renameSelf() {
     const name = await requestInput('Rename this device', 'This name will be shown to nearby devices.', deviceName);
@@ -1956,6 +2211,28 @@
       // Clicking the empty area around the media content closes the preview.
       if (!event.target.closest('img, video, audio, iframe, pre')) closePreview();
     });
+    document.getElementById('commandPalette')?.addEventListener('close', () => {
+      paletteState.open = false;
+    });
+    document.getElementById('paletteInput')?.addEventListener('input', event => {
+      paletteState.query = event.currentTarget.value;
+      paletteState.index = 0;
+      renderPalette();
+    });
+    document.getElementById('paletteInput')?.addEventListener('keydown', paletteKeydown);
+    document.getElementById('paletteList')?.addEventListener('click', event => {
+      const item = event.target.closest('[data-index]');
+      if (!item) return;
+      paletteState.index = Number(item.dataset.index);
+      paletteExecute();
+    });
+    document.getElementById('paletteList')?.addEventListener('mousemove', event => {
+      const item = event.target.closest('[data-index]');
+      if (!item || Number(item.dataset.index) === paletteState.index) return;
+      paletteState.index = Number(item.dataset.index);
+      renderPalette();
+    });
+    document.addEventListener('keydown', handleGlobalKeydown);
     document.getElementById('inputValue').addEventListener('keydown', event => {
       if (event.key !== 'Enter') return;
       event.preventDefault();
@@ -2023,4 +2300,5 @@ Object.assign(window, {
   manageSaveLocation, chooseSaveDirectory, removeStagedFile, clearStagedQueue,
   openStagedPreview, openTransferPreview, copyTransferFile,
   closePreview, openPreviewInNewTab, copyPreviewedFile,
+  openCommandPalette, closeCommandPalette, runCommand,
 });

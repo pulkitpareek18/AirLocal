@@ -96,7 +96,27 @@ Preview received or queued files directly in the app: images, videos, audio, PDF
 
 ### Copy to clipboard
 
-Received images and text files can be copied to the system clipboard straight from the transfer card or the preview dialog. Non-PNG images are converted automatically where the browser supports it.
+Received images and text files can be copied to the system clipboard straight from the transfer card or the preview dialog. Non-PNG images are converted automatically where the browser supports it. The button briefly turns into a green check mark when the copy succeeds.
+
+### Keyboard-first operation
+
+The whole app can be driven from the keyboard, in the spirit of tools like monkeytype:
+
+- `?` — open the command palette (search and run any action)
+- `Ctrl/Cmd + K` — open the command palette from anywhere, even while typing
+- `Shift + 1`–`9` — connect to the n-th nearby device
+- `o` — choose files to send
+- `s` — send the staged queue
+- `d` — disconnect
+- `c` — settings
+- `n` — rename this device
+- `r` — change room code
+- `f` — choose save folder
+- `t` — toggle light/dark theme
+- `Esc` — close dialogs, `Enter` — confirm
+- Dialog shortcuts while a modal is open: `↵` accept/confirm, `Esc` decline/cancel, `s`/`k`/`r`/`a` Skip/Keep/Replace/Replace-all on duplicate files, `c`/`n` copy/open-in-new-tab in previews
+
+Single-key shortcuts are ignored while typing in an input. Nearby device cards show their Shift + number key. Every dialog puts keyboard focus on its primary action when it opens, so `Tab`, `Enter`, and `Esc` are enough to operate the whole app.
 
 ### No cloud file storage
 

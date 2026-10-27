@@ -23,8 +23,13 @@ export function AppContent() {
           <a href="#how-it-works" className="rounded-md px-2.5 py-1.5 transition-colors hover:bg-accent hover:text-foreground">How it works</a>
           <a href="#citations" className="rounded-md px-2.5 py-1.5 transition-colors hover:bg-accent hover:text-foreground">Citations</a>
         </nav>
-        <Button onClick={() => { (window as any).toggleSettings() }} aria-label="Open settings" title="Settings" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+        <Button onClick={() => { (window as any).toggleSettings() }} aria-label="Open settings (c)" title="Settings (c)" className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
           <i data-lucide="settings-2" className="h-4 w-4"></i>
+          <span className="kbd-chip absolute -bottom-1.5 -right-1.5 h-4 min-w-4 px-1 text-[8px]">c</span>
+        </Button>
+        <Button onClick={() => { (window as any).openCommandPalette() }} aria-label="Keyboard shortcuts (press ?)" title="Keyboard shortcuts (?)" className="relative inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+          <i data-lucide="keyboard" className="h-4 w-4"></i>
+          <span className="kbd-chip absolute -bottom-1.5 -right-1.5 h-4 min-w-4 px-1 text-[8px]">?</span>
         </Button>
         <a href="https://github.com/pulkitpareek18/AirLocal" target="_blank" rel="noopener noreferrer" aria-label="View AirLocal on GitHub" title="View source on GitHub" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
           <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
@@ -76,7 +81,7 @@ export function AppContent() {
           <i data-lucide="wifi" className="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>
           <span><span className="font-medium">Both devices must be on the same local network.</span> Use the same Wi-Fi, a phone hotspot, or a LAN/Ethernet connection. If they are not on the same network, AirLocal will not transfer files. File transfer never uses mobile data.</span>
         </div>
-        <div className="flex gap-2">
+        <div className="mb-4 flex gap-2">
           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-semibold text-foreground">1</span>
           <span>Scan the QR code using your phone camera to connect and share files.</span>
         </div>
@@ -110,8 +115,10 @@ export function AppContent() {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <p id="selfName" className="text-sm font-medium leading-tight truncate">…</p>
-              <button onClick={() => { (window as any).renameSelf() }} className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground" title="Rename device">
+              <button onClick={() => { (window as any).renameSelf() }} className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" title="Rename device (n)" aria-label="Rename device (n)">
                 <i data-lucide="pencil" className="h-3 w-3"></i>
+                <span className="hidden sm:inline">Rename</span>
+                <span className="kbd-chip">n</span>
               </button>
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">Pair by QR or room code</p>
@@ -127,6 +134,7 @@ export function AppContent() {
             <p id="selfRoomHint" className="mt-1 font-mono text-3xl font-semibold tabular-nums tracking-[0.2em]">----</p>
             <button onClick={() => { (window as any).editRoom() }} className="mt-2 inline-flex h-7 items-center gap-1 rounded-md border border-input bg-background px-2.5 text-xs font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground">
               <i data-lucide="pencil" className="h-3 w-3"></i> Change
+              <span className="kbd-chip">r</span>
             </button>
           </div>
         </div>
@@ -191,6 +199,9 @@ export function AppContent() {
               <i data-lucide="file-up" className="h-4 w-4"></i>
             </div>
             <p className="mt-3 text-sm font-medium">Choose files or drop them here</p>
+            <p className="mt-1.5 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="kbd-chip">o</span> to browse
+            </p>
           </div>
 
           <div id="stagedContainer" className="mt-4 hidden">
@@ -203,6 +214,7 @@ export function AppContent() {
               <button id="sendBtn" onClick={() => { (window as any).transmitQueue() }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
                 <i data-lucide="zap" className="h-3.5 w-3.5 fill-current"></i>
                 <span id="sendBtnLabel">Send to <span id="sendTargetName">device</span></span>
+                <span className="kbd-chip ml-0.5 border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground/80">s</span>
               </button>
               <button id="clearQueueBtn" onClick={() => { (window as any).clearStagedQueue() }} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" title="Clear send queue">
                 <i data-lucide="trash-2" className="h-3.5 w-3.5"></i><span className="hidden sm:inline">Clear</span>
@@ -253,11 +265,23 @@ export function AppContent() {
         <button onClick={() => { (window as any).disconnectPeer() }} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
           <i data-lucide="unplug" className="h-3.5 w-3.5"></i>
           Disconnect
+          <span className="kbd-chip ml-0.5">d</span>
         </button>
       </div>
     </section>
 
-    <footer className="mt-auto pb-2 pt-4 text-center text-xs text-muted-foreground">
+    <div className="mt-auto rounded-lg border border-border bg-card/60 px-4 py-2.5 text-[11px] text-muted-foreground shadow-sm" aria-label="Keyboard shortcuts">
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+        <span className="flex items-center gap-1.5"><span className="kbd-chip">?</span> shortcuts</span>
+        <span className="flex items-center gap-1.5"><span className="kbd-chip"><span className="kbd-shift">⇧</span><span className="kbd-plus">+</span>1</span>–<span className="kbd-chip"><span className="kbd-shift">⇧</span><span className="kbd-plus">+</span>9</span> connect device</span>
+        <span className="flex items-center gap-1.5"><span className="kbd-chip">o</span> choose files</span>
+        <span className="flex items-center gap-1.5"><span className="kbd-chip">s</span> send</span>
+        <span className="flex items-center gap-1.5"><span className="kbd-chip">c</span> settings</span>
+        <span className="flex items-center gap-1.5"><span className="kbd-chip">t</span> theme</span>
+        <span className="flex items-center gap-1.5"><span className="kbd-chip">esc</span> close dialogs</span>
+      </div>
+    </div>
+    <footer className="pb-2 pt-4 text-center text-xs text-muted-foreground">
       <p className="mx-auto max-w-2xl leading-5">Files move directly between your devices over an encrypted local connection.</p>
       <p className="mx-auto max-w-2xl leading-5">AirLocal never uploads, stores, or inspects them.</p>
       <p className="mt-3">Made in India <span aria-label="Indian flag" role="img">🇮🇳</span> · Innovating from India, for everyone</p>
@@ -388,8 +412,8 @@ export function AppContent() {
       </div>
     </div>
     <div className="flex flex-row gap-2 border-t border-border p-4 sm:justify-end">
-      <button onClick={() => { (window as any).respondIncoming(false) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-md border border-input px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none sm:px-4">Decline</button>
-      <button onClick={() => { (window as any).respondIncoming(true) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none sm:px-4">Accept</button>
+      <button onClick={() => { (window as any).respondIncoming(false) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-input px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none sm:px-4">Decline<span className="kbd-chip">esc</span></button>
+      <button id="incomingAcceptBtn" onClick={() => { (window as any).respondIncoming(true) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none sm:px-4">Accept<span className="kbd-chip border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground/80">↵</span></button>
     </div>
   </Dialog>
 
@@ -406,8 +430,8 @@ export function AppContent() {
       </div>
     </div>
     <div className="flex flex-row gap-2 border-t border-border p-4 sm:justify-end">
-      <button type="button" onClick={() => { (window as any).resolveConfirmation(false) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none sm:px-4">Cancel</button>
-      <button id="confirmActionButton" type="button" onClick={() => { (window as any).resolveConfirmation(true) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none sm:px-4">Confirm</button>
+      <button type="button" onClick={() => { (window as any).resolveConfirmation(false) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none sm:px-4">Cancel<span className="kbd-chip">esc</span></button>
+      <button id="confirmActionButton" type="button" onClick={() => { (window as any).resolveConfirmation(true) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none sm:px-4">Confirm<span className="kbd-chip border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground/80">↵</span></button>
     </div>
   </Dialog>
 
@@ -422,10 +446,10 @@ export function AppContent() {
       </div>
     </div>
     <div className="grid grid-cols-2 gap-2 border-t border-border p-4 sm:grid-cols-4">
-      <button type="button" onClick={() => { (window as any).resolveOverwrite('skip') }} className="inline-flex h-9 items-center justify-center rounded-md border border-input px-2 text-xs font-medium hover:bg-accent">Skip</button>
-      <button type="button" onClick={() => { (window as any).resolveOverwrite('keep') }} className="inline-flex h-9 items-center justify-center rounded-md border border-input px-2 text-xs font-medium hover:bg-accent">Keep both</button>
-      <button type="button" onClick={() => { (window as any).resolveOverwrite('replace') }} className="inline-flex h-9 items-center justify-center rounded-md border border-input px-2 text-xs font-medium hover:bg-accent">Replace</button>
-      <button type="button" onClick={() => { (window as any).resolveOverwrite('replace-all') }} className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90">Replace all</button>
+      <button type="button" onClick={() => { (window as any).resolveOverwrite('skip') }} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-input px-2 text-xs font-medium hover:bg-accent">Skip<span className="kbd-chip">s</span></button>
+      <button type="button" onClick={() => { (window as any).resolveOverwrite('keep') }} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-input px-2 text-xs font-medium hover:bg-accent">Keep both<span className="kbd-chip">k</span></button>
+      <button type="button" onClick={() => { (window as any).resolveOverwrite('replace') }} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-input px-2 text-xs font-medium hover:bg-accent">Replace<span className="kbd-chip">r</span></button>
+      <button type="button" onClick={() => { (window as any).resolveOverwrite('replace-all') }} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:bg-primary/90">Replace all<span className="kbd-chip border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground/80">a</span></button>
     </div>
   </Dialog>
 
@@ -442,7 +466,7 @@ export function AppContent() {
       </div>
     </div>
     <div className="flex flex-row gap-2 border-t border-border p-4 sm:justify-end">
-      <button type="button" onClick={() => { closeQueueNotice() }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none">OK</button>
+      <button type="button" onClick={() => { closeQueueNotice() }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none">OK<span className="kbd-chip border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground/80">↵</span></button>
     </div>
   </Dialog>
 
@@ -452,11 +476,11 @@ export function AppContent() {
         <h2 className="text-base font-semibold">Settings</h2>
         <p className="mt-1 text-xs text-muted-foreground">Manage your AirLocal experience.</p>
       </div>
-      <button type="button" onClick={(event) => { event.preventDefault(); (window as any).closeSettings() }} aria-label="Close settings" className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><i data-lucide="x" className="h-4 w-4"></i></button>
+      <button type="button" onClick={(event) => { event.preventDefault(); (window as any).closeSettings() }} aria-label="Close settings" className="inline-flex h-7 items-center justify-center gap-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><span className="kbd-chip">esc</span><i data-lucide="x" className="h-4 w-4"></i></button>
     </div>
     <div className="space-y-2 p-5">
-      <button onClick={() => { (window as any).renameSelf(); (window as any).closeSettings() }} className="flex w-full items-center gap-3 rounded-md border border-border px-3 py-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><i data-lucide="pencil" className="h-4 w-4 text-muted-foreground"></i><span><span className="block font-medium">Rename this device</span><span className="text-xs text-muted-foreground">Choose the name other devices see.</span></span></button>
-      <button onClick={() => { (window as any).editRoom(); (window as any).closeSettings() }} className="flex w-full items-center gap-3 rounded-md border border-border px-3 py-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><i data-lucide="hash" className="h-4 w-4 text-muted-foreground"></i><span><span className="block font-medium">Change room code</span><span className="text-xs text-muted-foreground">Use the same four-digit code on another device.</span></span></button>
+      <button onClick={() => { (window as any).renameSelf(); (window as any).closeSettings() }} className="flex w-full items-center gap-3 rounded-md border border-border px-3 py-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><i data-lucide="pencil" className="h-4 w-4 text-muted-foreground"></i><span className="flex min-w-0 flex-1 items-center gap-2"><span><span className="block font-medium">Rename this device</span><span className="text-xs text-muted-foreground">Choose the name other devices see.</span></span></span><span className="kbd-chip shrink-0">n</span></button>
+      <button onClick={() => { (window as any).editRoom(); (window as any).closeSettings() }} className="flex w-full items-center gap-3 rounded-md border border-border px-3 py-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><i data-lucide="hash" className="h-4 w-4 text-muted-foreground"></i><span className="flex min-w-0 flex-1 items-center gap-2"><span><span className="block font-medium">Change room code</span><span className="text-xs text-muted-foreground">Use the same four-digit code on another device.</span></span></span><span className="kbd-chip shrink-0">r</span></button>
       <button onClick={() => { (window as any).clearTransferHistory(); (window as any).closeSettings() }} className="flex w-full items-center gap-3 rounded-md border border-border px-3 py-3 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><i data-lucide="broom" className="h-4 w-4 text-muted-foreground"></i><span><span className="block font-medium">Clear transfer history</span><span className="text-xs text-muted-foreground">Remove completed and stopped activity cards.</span></span></button>
       <div className="rounded-md border border-border p-3">
         <div className="flex items-start gap-3">
@@ -467,7 +491,7 @@ export function AppContent() {
             <p className="mt-1 text-[10px] text-muted-foreground">Relative folder path</p>
             <p id="saveLocationPath" className="break-all font-mono text-[10px] text-foreground">Browser Downloads</p>
             <div className="mt-3 flex gap-2">
-              <button onClick={() => { (window as any).chooseSaveDirectory() }} className="inline-flex h-8 items-center rounded-md border border-input bg-background px-2.5 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">Choose folder</button>
+              <button onClick={() => { (window as any).chooseSaveDirectory() }} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">Choose folder<span className="kbd-chip">f</span></button>
               <button onClick={() => { (window as any).clearSaveDirectory() }} className="inline-flex h-8 items-center rounded-md px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">Use Downloads</button>
             </div>
           </div>
@@ -490,11 +514,14 @@ export function AppContent() {
       </div>
       <label className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-3 text-sm">
         <span className="flex items-center gap-3"><i data-lucide="palette" className="h-4 w-4 text-muted-foreground"></i><span><span className="block font-medium">Color theme</span><span className="text-xs text-muted-foreground">Use your device setting or choose a theme.</span></span></span>
-        <select id="themeSelect" onChange={(event) => (window as any).setTheme(event.currentTarget.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium outline-none focus-visible:ring-1 focus-visible:ring-ring">
-          <option value="device">Device</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
+        <span className="flex items-center gap-2">
+          <span className="kbd-chip hidden sm:inline-flex">t</span>
+          <select id="themeSelect" onChange={(event) => (window as any).setTheme(event.currentTarget.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium outline-none focus-visible:ring-1 focus-visible:ring-ring">
+            <option value="device">Device</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </span>
       </label>
     </div>
     <div className="border-t border-border px-5 py-4 text-xs leading-relaxed text-muted-foreground">Files are transferred directly between your devices. AirLocal does not upload, store, or inspect your files. The relay only helps devices find and connect to each other.</div>
@@ -507,8 +534,8 @@ export function AppContent() {
       <Input id="inputValue" className="mt-4 flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring" autoComplete="off" />
     </div>
     <div className="flex flex-row gap-2 border-t border-border p-4 sm:justify-end">
-      <button type="button" onClick={() => { (window as any).resolveInput(null) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none">Cancel</button>
-      <button type="button" onClick={() => { (window as any).resolveInput((document.getElementById('inputValue') as HTMLInputElement).value) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none">Save</button>
+      <button type="button" onClick={() => { (window as any).resolveInput(null) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border border-input px-4 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none">Cancel<span className="kbd-chip">esc</span></button>
+      <button type="button" onClick={() => { (window as any).resolveInput((document.getElementById('inputValue') as HTMLInputElement).value) }} className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:flex-none">Save<span className="kbd-chip border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground/80">↵</span></button>
     </div>
   </Dialog>
 
@@ -523,21 +550,51 @@ export function AppContent() {
           <p id="previewMeta" className="mt-0.5 text-xs text-muted-foreground">—</p>
         </div>
       </div>
-      <button type="button" onClick={() => { (window as any).closePreview() }} aria-label="Close preview" className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><i data-lucide="x" className="h-4 w-4"></i></button>
+      <button type="button" id="previewCloseBtn" onClick={() => { (window as any).closePreview() }} aria-label="Close preview" className="inline-flex h-7 items-center justify-center gap-1.5 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"><span className="kbd-chip">esc</span><i data-lucide="x" className="h-4 w-4"></i></button>
     </div>
     <div id="previewBody" className="max-h-[calc(100dvh-11rem)] overflow-y-auto p-4 custom-scrollbar"></div>
     <div className="flex flex-row gap-2 border-t border-border px-5 py-3 sm:justify-end">
       <button type="button" onClick={() => { (window as any).openPreviewInNewTab() }} className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" title="Open the file in a new browser tab">
         <i data-lucide="external-link" className="h-3.5 w-3.5"></i>
         Open in new tab
+        <span className="kbd-chip">n</span>
       </button>
       <button type="button" id="previewCopyBtn" onClick={() => { (window as any).copyPreviewedFile() }} className="hidden h-9 items-center justify-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" title="Copy to clipboard">
         <i data-lucide="clipboard-copy" className="h-3.5 w-3.5"></i>
         <span className="copy-label">Copy to clipboard</span>
+        <span className="kbd-chip">c</span>
       </button>
       <button type="button" onClick={() => { (window as any).closePreview() }} className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
         Close
       </button>
+    </div>
+  </Dialog>
+
+  <Dialog id="commandPalette" className="fixed left-1/2 top-[12%] z-[90] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 rounded-lg border border-border bg-popover p-0 text-popover-foreground shadow-lg" aria-label="Command palette">
+    <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+      <i data-lucide="search" className="h-4 w-4 shrink-0 text-muted-foreground"></i>
+      <input
+        id="paletteInput"
+        type="text"
+        role="combobox"
+        aria-expanded="true"
+        aria-controls="paletteList"
+        aria-autocomplete="list"
+        aria-label="Search commands"
+        placeholder="Type a command…"
+        autoComplete="off"
+        spellCheck={false}
+        className="h-8 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+      />
+      <span className="kbd-chip shrink-0">esc</span>
+    </div>
+    <ul id="paletteList" role="listbox" aria-label="Commands" className="custom-scrollbar max-h-[min(50vh,22rem)] overflow-y-auto p-2"></ul>
+    <div className="flex items-center justify-between border-t border-border px-4 py-2.5 text-[10px] text-muted-foreground">
+      <span className="flex items-center gap-3">
+        <span className="flex items-center gap-1"><span className="kbd-chip">↑</span><span className="kbd-chip">↓</span> navigate</span>
+        <span className="flex items-center gap-1"><span className="kbd-chip">↵</span> run</span>
+      </span>
+      <span className="flex items-center gap-1"><span className="kbd-chip">?</span> anywhere · <span className="kbd-chip">⌘</span><span className="kbd-plus-text">+</span><span className="kbd-chip">K</span> toggle</span>
     </div>
   </Dialog>
 
